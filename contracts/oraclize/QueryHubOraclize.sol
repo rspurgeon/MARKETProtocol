@@ -35,7 +35,7 @@ contract QueryHubOraclize is usingOraclize, IQueryHub {
     event OracleQuerySuccess(address indexed marketContractAddress);
     event OracleQueryFailed(address indexed marketContractAddress);
 
-    function QueryHubOraclize(){
+    function QueryHubOraclize() public {
         oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
         //oraclize_setCustomGasPrice(QUERY_CALLBACK_GAS_PRICE);  //TODO: allow this to be changed by creator.
     }
@@ -53,7 +53,7 @@ contract QueryHubOraclize is usingOraclize, IQueryHub {
         address contractAddress = queryIDToCallBackContractAddress[queryID];
         require(contractAddress != address(0)); // ensures a valid query id.
         IQueryCallback callBackContract = IQueryCallback(contractAddress);
-        callBackContract.queryCallBack(queryId, result);
+        callBackContract.queryCallBack(queryID, result);
     }
 
     function queryOracleHub(
@@ -71,5 +71,9 @@ contract QueryHubOraclize is usingOraclize, IQueryHub {
         require(queryId != 0); // query was not created.
         queryIDToCallBackContractAddress[queryId] = msg.sender;
         return queryId;
+    }
+
+    function getQueryPrice(string dataSource) public returns (uint) {
+        return oraclize_getPrice(dataSource, QUERY_CALLBACK_GAS);
     }
 }

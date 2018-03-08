@@ -53,13 +53,13 @@ library MathLib {
     /// @param b value to add to a
     function add(int256 a, int256 b) pure internal returns (int256) {
         int256 c = a + b;
-        if (!isSameSign(a, b)) { // result will always be smaller than current value, no wrap possible
+        if (!isSameSign(a, b)) {// result will always be smaller than current value, no wrap possible
             return c;
         }
 
-        if (a >= 0) { // a is positive, b must be less than MAX - a to prevent wrap
+        if (a >= 0) {// a is positive, b must be less than MAX - a to prevent wrap
             assert(b <= INT256_MAX - a);
-        } else { // a is negative, b must be greater than MIN - a to prevent wrap
+        } else {// a is negative, b must be greater than MIN - a to prevent wrap
             assert(b >= INT256_MIN - a);
         }
         return c;
@@ -69,7 +69,8 @@ library MathLib {
     /// @param a value to subtract b from
     /// @param b value to subtract from a
     function subtract(int256 a, int256 b) pure internal returns (int256) {
-        return add(a, -b); // use inverse add
+        return add(a, - b);
+        // use inverse add
     }
 
     /// @param a integer to determine sign of
@@ -78,7 +79,7 @@ library MathLib {
         if (a > 0) {
             return 1;
         } else if (a < 0) {
-            return -1;
+            return - 1;
         }
         return 0;
     }
@@ -87,14 +88,14 @@ library MathLib {
     /// @param b integer to compare to a
     /// @return bool true if a and b are the same sign (+/-)
     function isSameSign(int a, int b) pure internal returns (bool) {
-        return ( a == b || a * b > 0);
+        return (a == b || a * b > 0);
     }
 
     /// @param a integer to determine absolute value of
     /// @return uint non signed representation of a
     function abs(int256 a) pure internal returns (uint256) {
         if (a < 0) {
-            return uint(-a);
+            return uint(- a);
         } else {
             return uint(a);
         }
@@ -105,7 +106,7 @@ library MathLib {
     /// @param b integer to compare to a
     /// @return a if a is closer to zero than b - does not return abs value!
     function absMin(int256 a, int256 b) pure internal returns (int256) {
-        return abs(a) < abs(b) ?  a : b;
+        return abs(a) < abs(b) ? a : b;
     }
 
     /// @notice finds the value further from zero regardless of sign
@@ -113,7 +114,7 @@ library MathLib {
     /// @param b integer to compare to a
     /// @return a if a is further to zero than b - does not return abs value!
     function absMax(int256 a, int256 b) pure internal returns (int256) {
-        return abs(a) >= abs(b) ?  a : b;
+        return abs(a) >= abs(b) ? a : b;
     }
 
     /// @notice determines the amount of needed collateral for a given position (qty and price)
@@ -132,13 +133,13 @@ library MathLib {
     {
 
         uint maxLoss;
-        if (qty > 0) {   // this qty is long, calculate max loss from entry price to floor
+        if (qty > 0) {// this qty is long, calculate max loss from entry price to floor
             if (price <= priceFloor) {
                 maxLoss = 0;
             } else {
                 maxLoss = subtract(price, priceFloor);
             }
-        } else { // this qty is short, calculate max loss from entry price to ceiling;
+        } else {// this qty is short, calculate max loss from entry price to ceiling;
             if (price >= priceCap) {
                 maxLoss = 0;
             } else {
@@ -146,5 +147,25 @@ library MathLib {
             }
         }
         neededCollateral = maxLoss * abs(qty) * qtyMultiplier;
+    }
+
+    function parseInt(string stringToParse, uint decimalsToParse) pure internal returns (uint) {
+        bytes memory byteString = bytes(stringToParse);
+        uint mint = 0;
+        bool decimals = false;
+        for (uint i = 0; i < byteString.length; i++) {
+            if ((byteString[i] >= 48) && (byteString[i] <= 57)) {
+                if (decimals) {
+                    if (decimalsToParse == 0) break;
+                    else decimalsToParse--;
+                }
+                mint *= 10;
+                mint += uint(byteString[i]) - 48;
+            } else if (byteString[i] == 46) {
+                decimals = true;
+            }
+        }
+        if (decimalsToParse > 0) mint *= 10 ** decimalsToParse;
+        return mint;
     }
 }

@@ -27,6 +27,7 @@ contract TestableMarketContractOraclize is MarketContractOraclize {
 
     /// @param contractName viewable name of this contract (BTC/ETH, LTC/ETH, etc)
     /// @param marketTokenAddress address of our member token
+    /// @param queryHubAddress address of the query hub
     /// @param baseTokenAddress address of the ERC20 token that will be used for collateral and pricing
     /// @param contractSpecs array of unsigned integers including:
     /// floorPrice minimum tradeable price of this contract, contract enters settlement if breached
@@ -43,6 +44,7 @@ contract TestableMarketContractOraclize is MarketContractOraclize {
     function TestableMarketContractOraclize(
         string contractName,
         address marketTokenAddress,
+        address queryHubAddress,
         address baseTokenAddress,
         uint[5] contractSpecs,
         string oracleDataSource,
@@ -51,6 +53,7 @@ contract TestableMarketContractOraclize is MarketContractOraclize {
     ) MarketContractOraclize(
         contractName,
         marketTokenAddress,
+        queryHubAddress,
         baseTokenAddress,
         contractSpecs,
         oracleDataSource,
