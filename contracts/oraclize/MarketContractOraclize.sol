@@ -16,36 +16,32 @@
 
 pragma solidity ^0.4.18;
 
-import "./oraclizeAPI.sol";
+import "./IQueryCallBack.sol";
+import "./IQueryHub.sol";
 import "../libraries/MathLib.sol";
 import "../MarketContract.sol";
 
 
-
 /// @title MarketContract first example of a MarketProtocol contract using Oraclize services
 /// @author Phil Elsasser <phil@marketprotocol.io>
-contract MarketContractOraclize is MarketContract, usingOraclize {
+contract MarketContractOraclize is MarketContract, IQueryCallback {
     using MathLib for uint;
 
     // constants
     string public ORACLE_DATA_SOURCE;
     string public ORACLE_QUERY;
     uint public ORACLE_QUERY_REPEAT;
-    uint constant public QUERY_CALLBACK_GAS = 150000;  // this is ~30,000 over needed gas currently - some cushion here
-    //uint constant public QUERY_CALLBACK_GAS_PRICE = 20000000000 wei; // 20 gwei - need to make this dynamic!
+    address QUERY_HUB_ADDRESS;
 
     // state variables
     string public lastPriceQueryResult;
     mapping(bytes32 => bool) validScheduledQueryIDs;
     mapping(bytes32 => bool) validUserRequestedQueryIDs;
 
-    // events
-    event OracleQuerySuccess();
-    event OracleQueryFailed();
-
 
     /// @param contractName viewable name of this contract (BTC/ETH, LTC/ETH, etc)
     /// @param marketTokenAddress address of our member token
+    /// @param queryHubAddress address of the query hub
     /// @param baseTokenAddress address of the ERC20 token that will be used for collateral and pricing
     /// @param contractSpecs array of unsigned integers including:
     /// floorPrice minimum tradeable price of this contract, contract enters settlement if breached
@@ -62,6 +58,7 @@ contract MarketContractOraclize is MarketContract, usingOraclize {
     function MarketContractOraclize(
         string contractName,
         address marketTokenAddress,
+        address queryHubAddress,
         address baseTokenAddress,
         uint[5] contractSpecs,
         string oracleDataSource,
@@ -74,11 +71,10 @@ contract MarketContractOraclize is MarketContract, usingOraclize {
         contractSpecs
     )  public payable
     {
-        oraclize_setProof(proofType_TLSNotary | proofStorage_IPFS);
-        //oraclize_setCustomGasPrice(QUERY_CALLBACK_GAS_PRICE);  //TODO: allow this to be changed by creator.
         ORACLE_DATA_SOURCE = oracleDataSource;
         ORACLE_QUERY = oracleQuery;
         ORACLE_QUERY_REPEAT = oracleQueryRepeatSeconds;
+        QUERY_HUB_ADDRESS = queryHubAddress;
         queryOracle();  // schedules recursive calls to oracle
     }
 
@@ -87,14 +83,16 @@ contract MarketContractOraclize is MarketContract, usingOraclize {
     /// the call to our oracle and post processing. This is useful for both a failsafe and as a way to
     /// settle a contract early if a price cap or floor has been breached.
     function requestEarlySettlement() external payable {
-        uint cost = oraclize_getPrice(ORACLE_DATA_SOURCE, QUERY_CALLBACK_GAS);
+        IQueryHub queryHub = IQueryHub(QUERY_HUB_ADDRESS);
+        uint cost = queryHub.getPrice(ORACLE_DATA_SOURCE);
+        requite(msq.value >= cost);
         require(msg.value >= cost); // user must pay enough to cover query and callback
         // create immediate query, we must make sure to store this one separately, so
         // we do not schedule recursive callbacks when the query completes.
-        bytes32 queryId = oraclize_query(
+        bytes32 queryId = queryHub.queryOracleHub.value(cost)(
             ORACLE_DATA_SOURCE,
             ORACLE_QUERY,
-            QUERY_CALLBACK_GAS
+            ORACLE_QUERY_REPEAT
         );
         validUserRequestedQueryIDs[queryId] = true;
     }
@@ -107,7 +105,7 @@ contract MarketContractOraclize is MarketContract, usingOraclize {
     /// @param queryID of the returning query, this should match our own internal mapping
     /// @param result query to be processed
     /// @param proof result proof
-    function __callback(bytes32 queryID, string result, bytes proof) public {
+    function queryCallBack(bytes32 queryID, string result) public {
         require(msg.sender == oraclize_cbAddress());
         bool isScheduled = validScheduledQueryIDs[queryID];
         require(isScheduled || validUserRequestedQueryIDs[queryID]);
@@ -134,18 +132,14 @@ contract MarketContractOraclize is MarketContract, usingOraclize {
 
     /// @dev call to oraclize to set up our query and record its hash.
     function queryOracle() private {
-        if (oraclize_getPrice(ORACLE_DATA_SOURCE, QUERY_CALLBACK_GAS) > this.balance) {
-            OracleQueryFailed();
-            lastPriceQueryResult = "FAILED"; //TODO: failsafe
-        } else {
-            OracleQuerySuccess();
-            bytes32 queryId = oraclize_query(
-                ORACLE_QUERY_REPEAT,
-                ORACLE_DATA_SOURCE,
-                ORACLE_QUERY,
-                QUERY_CALLBACK_GAS
-            );
-            validScheduledQueryIDs[queryId] = true;
-        }
+        IQueryHub queryHub = IQueryHub(QUERY_HUB_ADDRESS);
+        uint price = queryHub.getPrice(ORACLE_DATA_SOURCE);
+        requite(this.balance >= price);
+        bytes32 queryId = queryHub.queryOracleHub.value(price)(
+            ORACLE_DATA_SOURCE,
+            ORACLE_QUERY,
+            ORACLE_QUERY_REPEAT
+        );
+        validScheduledQueryIDs[queryId] = true;
     }
 }
