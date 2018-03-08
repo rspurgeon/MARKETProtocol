@@ -32,7 +32,7 @@ module.exports = function (deployer, network) {
         marketTokenAmountForContractCreation
       ).then(function () {
         return deployer.deploy(CollateralToken, "CollateralToken", "CTK", 10000, 18).then(function () {
-          let gasLimit = 3800000;  // gas limit for development network
+          let gasLimit = 3700000;  // gas limit for development network
           let block = web3.eth.getBlock("latest");
           if (block.gasLimit > 7000000) {  // coverage network
             gasLimit = block.gasLimit;
