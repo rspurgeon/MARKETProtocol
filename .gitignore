@@ -6,3 +6,7 @@ build/
 coverage.json
 coverage/
 node_modules/
+
+# Ignore vim editor temporary files
+*.swp
+*.swo
